@@ -193,7 +193,7 @@ These are deliberately **absolute** limits. They aren't risk-model outputs. They
 1. **Sample large enough:** the paper Sharpe's standard error (Lo 2002, autocorrelation-adjusted) is ≤ 0.5. The minimum is 3 months and 30 round trips.
 2. **Consistent with the backtest:** a bootstrap test of paper versus out-of-sample backtest Sharpe isn't rejected (p > 0.10), paper DD ≤ DD₉₅, and the paper period passes the Kupiec/Christoffersen tests.
 3. **Execution quality:** implementation shortfall ≤ 1.5 × the modelled cost, the stop-slippage 95th percentile is ≤ 2R, and there are no unresolved incidents.
-4. **Adds to the portfolio:** marginal Sharpe contribution to the existing live book > 0 at the proposed allocation.
+4. **Adds to the portfolio:** marginal Sharpe contribution to the existing live book > 0 at the proposed allocation. The resulting live portfolio's deflated Sharpe must be ≥ 1.2 (RESEARCH.md §5a).
 5. Claude writes a promotion summary in STRATEGIES.md.
 6. **The owner adds the strategy to `config/live_approved.yaml`**, with its allocation. Claude never writes this file.
 

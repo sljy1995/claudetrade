@@ -21,40 +21,36 @@ The repo started empty on 2026-11-25, so the layout and commands below are the *
 Read these before working in the area they cover. They override anything more general in this file.
 
 - [RISK.md](RISK.md) covers risk model, sizing, stops, drawdown control, halt states, circuit breakers and the paper → live promotion rules. Only the owner changes its primitives, breakers and promotion rules.
+- [RESEARCH.md](RESEARCH.md) covers data hygiene, partitioning, multiple-testing corrections, required reports, pass criteria, the critic checklist and alpha search. The owner sets the portfolio Sharpe target.
 
 ## Hard rules (never bypass)
 
 - **Live trading needs the owner's explicit approval each time a strategy is promoted to live.** It is never enabled by default. Live mode requires `TRADING_MODE=live` *and* a per-strategy entry in `config/live_approved.yaml` that the owner wrote. Claude may propose a promotion, but never writes that approval itself.
 - **Paper before live.** A strategy goes live only after passing the statistical paper → live gates in RISK.md §10. The system never increases real-money risk on its own.
 - **Risk controls follow [RISK.md](RISK.md).** They are configured in `config/risk.yaml` and enforced in `execution/risk.py` before every order and after every fill and mark. Strategy code can't override them. Changes to the owner primitives, circuit breakers or promotion rules need the owner's approval.
-- **Never touch the test (holdout) period while developing a strategy.** It is evaluated exactly once, at the end. If a strategy is changed after seeing test results, that test window is burned. Record this, and validate on fresh data (for example, paper trading).
+- **Never touch the holdout while developing a strategy** (RESEARCH.md §2). If a strategy is changed after seeing holdout results, that window is burned.
 - Credentials (IBKR account IDs, API keys) come from `.env`, which is git-ignored. Never log or commit them.
 
-## Validation methodology
+## Validation and research loop
 
-Overfitting is the main way this project can fail. Every backtest must:
+[RESEARCH.md](RESEARCH.md) is the full protocol. In short:
 
-- **Split by time, never randomly.** The default split is ~60% train, ~20% validation, ~20% test (most recent). Use **walk-forward** (rolling or expanding window) optimisation for any parameter fitting. Put a **purge/embargo gap** between folds that is at least as long as the label horizon.
-- **Avoid lookahead.** Use features available at decision time only. Lag fundamentals to their *report date*, not period end. Signals at close t trade at open t+1 or later.
-- **Avoid survivorship bias.** Use point-in-time universes that include delisted names where the data allows. If the source (for example, yfinance) can't do this, flag the result as biased in the report.
-- **Model costs.** Include commissions (IBKR tiered), slippage/spread, borrow costs for shorts, and liquidity caps (for example, ≤1% of ADV).
-- **Report more than one metric:** CAGR, volatility, Sharpe, Sortino, max drawdown, Calmar, turnover, hit rate, average win/loss, exposure, and beta/correlation to SPY. Always compare against benchmarks (SPY and an equal-weight universe).
-- **Correct for multiple testing.** Log every variant tried (`research/trials.jsonl`), and report the deflated Sharpe ratio or probability of backtest overfitting alongside the raw Sharpe.
-- **Test robustness:** parameter-perturbation sensitivity, performance by regime (bull/bear/high-vol), by sub-period, and with costs doubled. A strategy that works for only one parameter set or one period is rejected.
-
-## Research loop (how Claude works autonomously)
+- **Partitioning.** The holdout is the most recent period, sized by minimum track record length (≥ 18 months). Its boundary is fixed before development starts and it is evaluated once. Development uses combinatorial purged cross-validation (CPCV) with walk-forward fitting, purge and embargo.
+- **Point-in-time data only.** This covers lookahead, survivorship, report-date-lagged fundamentals and vintage macro data. Execution is at t+1 or later.
+- **Multiple testing.** Every variant goes in `research/trials.jsonl`. Promotion requires Deflated Sharpe ≥ 0.95 and PBO ≤ 0.25, plus robustness to parameters, costs, regimes and P&L concentration.
+- **Portfolio target.** The goal is a diversified multi-equity portfolio with a deflated Sharpe ≥ 1.2 net of costs. Individual strategies qualify by raising it.
 
 For each idea:
 
-1. **Hypothesis.** Write a one-paragraph economic rationale for *why* the edge should exist, in `research/ideas/<id>.md`. Ideas without a rationale are data-mining.
-2. **Build** the signal and strategy, with unit tests.
-3. **Backtest** on train, then tune on validation through walk-forward. Log every trial.
-4. **Critique.** Act as an adversarial reviewer: look for lookahead, survivorship, cost sensitivity, crowding, regime dependence and correlation with existing strategies. Record findings in the idea file.
-5. **Final test** on the holdout, once only.
-6. **Decide** whether to promote to paper, iterate or retire, and record the reason. Keep a registry of strategy status in `research/registry.yaml` (`idea → backtested → paper → live → retired`).
-7. **Monitor.** Compare paper and live strategies against their backtest expectations, and flag decay (for example, rolling Sharpe below the lower confidence bound).
+1. **Hypothesis first.** Write `research/ideas/<id>.md` before testing it. Include the economic rationale, expected regime, the selection rule and the kill criteria.
+2. **Build** the signal and strategy, with unit and leakage tests.
+3. **Develop** with CPCV on the development set. Log every trial.
+4. **Critique.** An adversarial review using the RESEARCH.md §6 checklist. Critical findings block promotion.
+5. **Final test** on the holdout, once, after all rules are frozen.
+6. **Decide** whether to reject, mark inconclusive or promote to paper, and record the outcome. Track status in `research/registry.yaml` (`idea → backtested → paper → live → retired`).
+7. **Monitor** paper and live performance against the predictive distribution, and shrink or retire strategies as their Sharpe posterior decays.
 
-Look for new alpha across families, such as momentum/trend, mean reversion, quality/value factors, earnings/post-announcement drift, volatility regimes, macro-regime tilts and cross-sectional ranking. A new strategy is valuable only if it adds to the portfolio (low correlation with existing ones), not just if it is good on its own.
+Search continuously across alpha families (RESEARCH.md §7). Prefer ideas likely to be uncorrelated with existing strategies, because a strategy's value is its marginal contribution to the portfolio.
 
 ## Intended architecture
 
