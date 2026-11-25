@@ -69,13 +69,16 @@ Search continuously across alpha families (RESEARCH.md §7). Prefer ideas likely
 - Ports: **paper** 7497 (TWS) / 4002 (Gateway), **live** 7496 (TWS) / 4001 (Gateway). Default to paper. The adapter must refuse a live port unless the hard-rule conditions above are met.
 - Reconcile positions with the broker at startup and periodically. Treat the broker as the source of truth for positions and fills.
 
-## Commands (intended)
+## Commands
 
 ```bash
 uv sync                                   # install deps (pyproject.toml)
-uv run pytest                             # all tests
-uv run pytest tests/test_backtest.py::test_no_lookahead -q   # single test
+uv run pytest                             # all offline tests (network-marked tests are skipped)
+uv run pytest -m network                  # tests that hit live data sources
+uv run pytest tests/test_pit.py::test_future_append_invariance -q   # single test
 uv run ruff check . && uv run ruff format .                    # lint / format
+uv run python -m claudetrade.data.fetch yahoo --tickers AAPL MSFT --start 2005-01-01   # -> data/snapshots/
+uv run python -m claudetrade.data.fetch fred --series DGS10 CPIAUCSL                     # needs FRED_API_KEY
 uv run python -m claudetrade.backtest.run --strategy <id> --split development
 uv run python -m claudetrade.execution.run --strategy <id> --mode paper
 ```
