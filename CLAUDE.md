@@ -22,6 +22,7 @@ Read these before working in the area they cover. They override anything more ge
 
 - [RISK.md](RISK.md) covers risk model, sizing, stops, drawdown control, halt states, circuit breakers and the paper → live promotion rules. Only the owner changes its primitives, breakers and promotion rules.
 - [RESEARCH.md](RESEARCH.md) covers data hygiene, partitioning, multiple-testing corrections, required reports, pass criteria, the critic checklist and alpha search. The owner sets the portfolio Sharpe target.
+- [STRATEGIES.md](STRATEGIES.md) is the logbook of every idea (never delete entries), with a lessons-learned summary at the top. Read it and run the prior-art check before proposing a new idea. Update it at every status change.
 
 ## Hard rules (never bypass)
 
