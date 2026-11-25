@@ -23,6 +23,7 @@ Read these before working in the area they cover. They override anything more ge
 - [RISK.md](RISK.md) covers risk model, sizing, stops, drawdown control, halt states, circuit breakers and the paper → live promotion rules. Only the owner changes its primitives, breakers and promotion rules.
 - [RESEARCH.md](RESEARCH.md) covers data hygiene, partitioning, multiple-testing corrections, required reports, pass criteria, the critic checklist and alpha search. The owner sets the portfolio Sharpe target.
 - [STRATEGIES.md](STRATEGIES.md) is the logbook of every idea (never delete entries), with a lessons-learned summary at the top. Read it and run the prior-art check before proposing a new idea. Update it at every status change.
+- [ARCHITECTURE.md](ARCHITECTURE.md) covers the code map, interfaces, run modes, the daily cycle, the broker boundary and the testing layers. Update it in the same PR as any structural change.
 
 ## Hard rules (never bypass)
 
@@ -53,26 +54,14 @@ For each idea:
 
 Search continuously across alpha families (RESEARCH.md §7). Prefer ideas likely to be uncorrelated with existing strategies, because a strategy's value is its marginal contribution to the portfolio.
 
-## Intended architecture
+## Architecture
 
-```
-data/            # loaders + local cache (parquet). Market data, fundamentals, macro (FRED)
-features/        # pure functions: prices/fundamentals -> point-in-time features
-signals/         # features -> scores/positions per strategy
-strategies/      # strategy classes composing signals + entry/exit rules
-portfolio/       # selection, sizing (vol targeting / risk parity), diversification constraints
-backtest/        # event-driven engine, cost model, splits/walk-forward, metrics, reports
-execution/       # broker abstraction, IBKR adapter, risk checks, order management
-research/        # idea notes, trial log, strategy registry, generated reports
-config/          # risk.yaml, universe definitions, live_approved.yaml (owner-written)
-tests/
-```
+[ARCHITECTURE.md](ARCHITECTURE.md) has the full code map, data flow, daily cycle and testing layers. Key points:
 
-Key design points:
-
-- **One strategy interface for backtest, paper and live.** A strategy emits target weights. The backtest engine and the live executor both consume that same output. Never put separate backtest-only logic in strategy code.
-- **Broker abstraction.** `execution/broker.py` defines the interface. It has a `SimBroker` for backtests and an `IBKRBroker` for paper and live trading. Paper versus live is a config or port difference, not a code difference.
-- **Macro layer.** Regime indicators (rates, yield curve, credit spreads, VIX, PMI, inflation) feed both features and portfolio-level risk scaling. Per-equity fundamental and macro sensitivity (for example, rate beta and sector cyclicality) informs selection.
+- Code lives under `src/claudetrade/`, while `research/`, `config/`, `state/` and `logs/` hold data at the repo root.
+- **One code path** for backtest, paper and live. Strategies emit target weights from a point-in-time store (`as_of` queries can't see the future). Only the clock, data feed and broker adapter differ by mode.
+- `execution/risk.py` is the **only** path to the broker. It checks before orders and after fills and marks.
+- Build modules when concrete work needs them. Don't scaffold empty packages.
 
 ## Interactive Brokers
 
@@ -87,8 +76,8 @@ uv sync                                   # install deps (pyproject.toml)
 uv run pytest                             # all tests
 uv run pytest tests/test_backtest.py::test_no_lookahead -q   # single test
 uv run ruff check . && uv run ruff format .                    # lint / format
-uv run python -m backtest.run --strategy <name> --split validation
-uv run python -m execution.run --strategy <name> --mode paper
+uv run python -m claudetrade.backtest.run --strategy <id> --split development
+uv run python -m claudetrade.execution.run --strategy <id> --mode paper
 ```
 
 ## Data sources (starting point)
