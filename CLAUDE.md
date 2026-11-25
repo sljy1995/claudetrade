@@ -16,11 +16,17 @@ This is a Python research and trading system. Claude develops, validates and run
 
 The repo started empty on 2026-11-25, so the layout and commands below are the **intended** design. Build to them, and update this file when reality differs.
 
+## Companion docs
+
+Read these before working in the area they cover. They override anything more general in this file.
+
+- [RISK.md](RISK.md) covers risk model, sizing, stops, drawdown control, halt states, circuit breakers and the paper → live promotion rules. Only the owner changes its primitives, breakers and promotion rules.
+
 ## Hard rules (never bypass)
 
 - **Live trading needs the owner's explicit approval each time a strategy is promoted to live.** It is never enabled by default. Live mode requires `TRADING_MODE=live` *and* a per-strategy entry in `config/live_approved.yaml` that the owner wrote. Claude may propose a promotion, but never writes that approval itself.
-- **Paper before live.** A strategy goes live only after at least 3 months of paper trading (and at least 50 trades) whose performance stays within the confidence band of its out-of-sample backtest.
-- **Risk limits live in `config/risk.yaml` and are enforced in `execution/risk.py` before every order.** These include max position size as % of NAV, max sector exposure, max gross/net exposure, a daily loss limit, and a max drawdown kill-switch that flattens positions and halts trading. Strategy code can't override them. Loosening a limit needs the owner's approval.
+- **Paper before live.** A strategy goes live only after passing the statistical paper → live gates in RISK.md §10. The system never increases real-money risk on its own.
+- **Risk controls follow [RISK.md](RISK.md).** They are configured in `config/risk.yaml` and enforced in `execution/risk.py` before every order and after every fill and mark. Strategy code can't override them. Changes to the owner primitives, circuit breakers or promotion rules need the owner's approval.
 - **Never touch the test (holdout) period while developing a strategy.** It is evaluated exactly once, at the end. If a strategy is changed after seeing test results, that test window is burned. Record this, and validate on fresh data (for example, paper trading).
 - Credentials (IBKR account IDs, API keys) come from `.env`, which is git-ignored. Never log or commit them.
 
